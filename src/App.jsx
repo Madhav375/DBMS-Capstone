@@ -9,7 +9,7 @@ function BankApp(){let[branches,setBranches]=useState([]),[customers,setCustomer
 
 function AuthGate(){
  const [user,setUser]=useState(null),[checking,setChecking]=useState(true),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false),[showUsers,setShowUsers]=useState(false),[employees,setEmployees]=useState([]),[fullName,setFullName]=useState(""),[newEmail,setNewEmail]=useState(""),[newPassword,setNewPassword]=useState(""),[newRole,setNewRole]=useState("employee"),[message,setMessage]=useState("");
- const VITE_API_URL="https://nexora-bank-api.onrender.com";
+ const api="https://nexora-bank-api.onrender.com";
  async function loadUser(){try{const r=await fetch(api+"/api/auth/me",{credentials:"include"});if(r.ok){const d=await r.json();setUser(d.user);}}catch{}finally{setChecking(false);}}
  useEffect(()=>{loadUser();},[]);
  async function login(e){e.preventDefault();setBusy(true);setError("");try{const r=await fetch(api+"/api/auth/login",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Login failed.");setUser(d.user);setPassword("");}catch(x){setError(x.message);}finally{setBusy(false);}}
