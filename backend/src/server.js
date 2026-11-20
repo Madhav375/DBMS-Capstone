@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from './db.js';
-import { requireAuth, requireAdmin } from './auth.js';
+import { requireAdmin } from './auth.js';
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
@@ -30,10 +30,21 @@ const cookieOptions = {
   path: '/'
 };
 
+// Direct demo bypass: attaches an active admin user to every request
+const demoAuth = (req, _res, next) => {
+  req.user = {
+    id: 1,
+    name: 'Madhav',
+    email: 'admin@nexora.local',
+    role: 'admin'
+  };
+  next();
+};
+
 function issueToken(res, user) {
   const token = jwt.sign(
     { id: user.user_id, name: user.full_name, email: user.email, role: user.role },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || 'nexora_demo_secret',
     { expiresIn: '8h' }
   );
   res.cookie('nexora_token', token, { ...cookieOptions, maxAge: 8 * 60 * 60 * 1000 });
@@ -66,14 +77,14 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => res.json({ user: req.user }));
+app.get('/api/auth/me', demoAuth, (req, res) => res.json({ user: req.user }));
 
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('nexora_token', cookieOptions);
   res.json({ ok: true });
 });
 
-app.post('/api/admin/employees', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/employees', demoAuth, requireAdmin, async (req, res) => {
   const { full_name, email, password, role = 'employee' } = req.body || {};
   if (!full_name || !email || !password || password.length < 10) {
     return res.status(400).json({ error: 'Enter name, email and a password of at least 10 characters.' });
@@ -93,12 +104,12 @@ app.post('/api/admin/employees', requireAuth, requireAdmin, async (req, res) => 
   }
 });
 
-app.get('/api/admin/employees', requireAuth, requireAdmin, async (_req, res) => {
+app.get('/api/admin/employees', demoAuth, requireAdmin, async (_req, res) => {
   const [rows] = await pool.query('SELECT user_id,full_name,email,role,is_active,created_at FROM users ORDER BY user_id');
   res.json(rows);
 });
 
-app.patch('/api/admin/employees/:id/status', requireAuth, requireAdmin, async (req, res) => {
+app.patch('/api/admin/employees/:id/status', demoAuth, requireAdmin, async (req, res) => {
   const active = Number(req.body?.is_active);
   if (![0, 1].includes(active)) return res.status(400).json({ error: 'Invalid status.' });
   if (Number(req.params.id) === req.user.id) {
@@ -108,7 +119,7 @@ app.patch('/api/admin/employees/:id/status', requireAuth, requireAdmin, async (r
   res.json({ ok: true });
 });
 
-app.use('/api', requireAuth);
+app.use('/api', demoAuth);
 
 app.get('/api/data', async (_req, res) => {
   try {

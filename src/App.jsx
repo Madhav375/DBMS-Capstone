@@ -507,9 +507,10 @@ function BankApp() {
   );
 }
 
-function AuthGate() {
-  const [user, setUser] = useState(null),
-    [checking, setChecking] = useState(true),
+
+  function AuthGate() {
+  const [user, setUser] = useState({ id: 1, name: "Madhav", email: "admin@nexora.local", role: "admin" });
+  const [checking, setChecking] = useState(false);
     [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(""),
