@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Layout, Intro, Button, Field, Table, Status, Foot, money, name } from "./components";
+import { Layout, Intro, Button, Field, Table, Status, Foot, money } from "./components";
 import { Plus } from "lucide-react";
 
 const API = "https://nexora-bank-api.onrender.com";
 
 function Dashboard({ d }) {
   let go = useNavigate();
-  let total = d.accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  let total = (d.accounts || []).reduce((s, a) => s + Number(a.balance || 0), 0);
   return (
     <>
       <div className="welcome">
         <div>
           <h2>Welcome back, Madhav ✦</h2>
-          <p>Overview of your bank's records.</p>
+          <p>Overview of your bank's live records.</p>
         </div>
         <Button onClick={() => go("/money-operations")}>
           <Plus size={16} /> New transaction
@@ -113,13 +113,12 @@ function Entity({ title, subtitle, kind, d, setD, notify }) {
 
   async function save(e) {
     e.preventDefault();
-    let body = { ...f };
     try {
       let response = await fetch(`${API}/api/${kind}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...f }),
       });
       let result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save record.");
@@ -316,9 +315,9 @@ function MoneyOps({ d, setAccounts, setTransactions, setAuditLogs, notify }) {
       });
       let result = await response.json();
       if (!response.ok) throw new Error(result.error || "Transaction failed.");
-      setAccounts(result.accounts);
+      setAccounts(result.accounts || []);
       setTransactions((p) => [result.transaction, ...p]);
-      setAuditLogs(result.auditLogs);
+      setAuditLogs(result.auditLogs || []);
       A("");
       notify("Transaction saved in MySQL successfully.");
     } catch (error) {
@@ -405,17 +404,17 @@ function BankApp() {
         return r.json();
       })
       .then((data) => {
-        setBranches(data.branches);
-        setCustomers(data.customers);
-        setAccounts(data.accounts);
-        setLoans(data.loans);
-        setTransactions(data.transactions);
-        setAuditLogs(data.auditLogs);
+        setBranches(data.branches || []);
+        setCustomers(data.customers || []);
+        setAccounts(data.accounts || []);
+        setLoans(data.loans || []);
+        setTransactions(data.transactions || []);
+        setAuditLogs(data.auditLogs || []);
         setLoading(false);
       })
       .catch((error) => {
         setLoading(false);
-        notify("Cannot connect to MySQL backend. Start the backend and check database settings.");
+        notify("Cannot connect to MySQL backend. Waking up server...");
         console.error(error);
       });
   }, []);
@@ -507,267 +506,4 @@ function BankApp() {
   );
 }
 
-
-  function AuthGate() {
-  const [user, setUser] = useState({ id: 1, name: "Madhav", email: "admin@nexora.local", role: "admin" });
-  const [checking, setChecking] = useState(false);
-    [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [showUsers, setShowUsers] = useState(false),
-    [employees, setEmployees] = useState([]),
-    [fullName, setFullName] = useState(""),
-    [newEmail, setNewEmail] = useState(""),
-    [newPassword, setNewPassword] = useState(""),
-    [newRole, setNewRole] = useState("employee"),
-    [message, setMessage] = useState("");
-
-  async function loadUser() {
-    try {
-      const r = await fetch(`${API}/api/auth/me`, { credentials: "include" });
-      if (r.ok) {
-        const d = await r.json();
-        setUser(d.user);
-      }
-    } catch {
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  async function login(e) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const r = await fetch(`${API}/api/auth/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "Login failed.");
-      setUser(d.user);
-      setPassword("");
-    } catch (x) {
-      setError(x.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function logout() {
-    await fetch(`${API}/api/auth/logout`, { method: "POST", credentials: "include" });
-    setUser(null);
-    setShowUsers(false);
-  }
-
-  async function openEmployees() {
-    setShowUsers((v) => !v);
-    if (!showUsers) {
-      const r = await fetch(`${API}/api/admin/employees`, { credentials: "include" });
-      const d = await r.json();
-      if (r.ok) setEmployees(d);
-      else setMessage(d.error || "Could not load employees.");
-    }
-  }
-
-  async function createEmployee(e) {
-    e.preventDefault();
-    setMessage("");
-    try {
-      const r = await fetch(`${API}/api/admin/employees`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: fullName,
-          email: newEmail,
-          password: newPassword,
-          role: newRole,
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
-      setMessage("Employee account created.");
-      setFullName("");
-      setNewEmail("");
-      setNewPassword("");
-      const list = await fetch(`${API}/api/admin/employees`, { credentials: "include" });
-      setEmployees(await list.json());
-    } catch (x) {
-      setMessage(x.message);
-    }
-  }
-
-  if (checking) return <div style={{ padding: 40, fontFamily: "Arial" }}>Checking employee session...</div>;
-
-  if (!user)
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#f3f5f8",
-          fontFamily: "Arial",
-          padding: 20,
-        }}
-      >
-        <form
-          onSubmit={login}
-          style={{
-            background: "white",
-            padding: 32,
-            borderRadius: 16,
-            width: "min(420px,100%)",
-            boxShadow: "0 12px 40px #17203318",
-          }}
-        >
-          <div style={{ fontSize: 13, letterSpacing: 2, color: "#64748b", fontWeight: 700 }}>
-            NEXORA BANK
-          </div>
-          <h1 style={{ margin: "10px 0" }}>Employee sign in</h1>
-          <p style={{ color: "#64748b" }}>
-            Only bank employees with an active account can access the banking system.
-          </p>
-          <label style={{ display: "block", marginTop: 18 }}>Work email</label>
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: 12, marginTop: 6, boxSizing: "border-box" }}
-          />
-          <label style={{ display: "block", marginTop: 14 }}>Password</label>
-          <input
-            required
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", padding: 12, marginTop: 6, boxSizing: "border-box" }}
-          />
-          {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-          <button
-            disabled={busy}
-            style={{
-              width: "100%",
-              padding: 13,
-              marginTop: 20,
-              background: "#173b63",
-              color: "white",
-              border: 0,
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
-          >
-            {busy ? "Signing in..." : "Sign in"}
-          </button>
-          <small style={{ display: "block", marginTop: 16, color: "#64748b" }}>
-            Public registration is disabled. Ask your bank administrator for an employee account.
-          </small>
-        </form>
-      </div>
-    );
-
-  return (
-    <>
-      <div
-        style={{
-          position: "fixed",
-          right: 20,
-          top: 12,
-          zIndex: 9999,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          background: "white",
-          padding: 8,
-          borderRadius: 8,
-          boxShadow: "0 2px 12px #0002",
-          fontFamily: "Arial",
-          fontSize: 13,
-        }}
-      >
-        <b>{user.name}</b>
-        <span>({user.role})</span>
-        {user.role === "admin" && <button onClick={openEmployees}>Employee accounts</button>}
-        <button onClick={logout}>Log out</button>
-      </div>
-      {showUsers && user.role === "admin" && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "#0008",
-            zIndex: 9998,
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              background: "white",
-              padding: 24,
-              borderRadius: 12,
-              width: "min(650px,100%)",
-              maxHeight: "85vh",
-              overflow: "auto",
-              fontFamily: "Arial",
-            }}
-          >
-            <button style={{ float: "right" }} onClick={() => setShowUsers(false)}>
-              Close
-            </button>
-            <h2>Employee accounts</h2>
-            <form onSubmit={createEmployee} style={{ display: "grid", gap: 10 }}>
-              <input
-                required
-                placeholder="Full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-              <input
-                required
-                type="email"
-                placeholder="Work email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-              />
-              <input
-                required
-                minLength={10}
-                type="password"
-                placeholder="Temporary password (10+ characters)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-              <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-                <option value="employee">Employee</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button>Create employee account</button>
-            </form>
-            {message && <p>{message}</p>}
-            <h3>Existing accounts</h3>
-            {employees.map((x) => (
-              <p key={x.user_id}>
-                {x.full_name} — {x.email} — {x.role} — {x.is_active ? "Active" : "Inactive"}
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-      <BankApp />
-    </>
-  );
-}
-
-export default AuthGate;
+export default BankApp;
